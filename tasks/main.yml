@@ -1,0 +1,7 @@
+---
+# tasks file for gluster-ansible-maintenance
+- name: Replace a node
+  import_role:
+    name: "gluster.maintenance/roles/replace_node"
+  tags:
+    - replace_node

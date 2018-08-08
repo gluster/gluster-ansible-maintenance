@@ -1,0 +1,51 @@
+---
+- name: Fetch the UUID of the old node
+  shell: >
+    gluster peer status |
+    grep -A1 {{ gluster_maintenance_old_node | mandatory }} |
+    awk -F: '/uid/ { print $2}'
+  register: old_node_uuid
+  run_once: true
+
+- name: Get the UUID of master
+  shell: awk -F= '/UUID/{print $2}' "{{ glusterd_libdir }}/glusterd.info"
+  register: master_uuid
+  run_once: true
+
+- name: Store the UUID
+  set_fact:
+    old_uuid: "{{ old_node_uuid.stdout | trim }}"
+    master_uuid: "{{ master_uuid.stdout }}"
+
+- name: Edit the new node's gluster.info
+  lineinfile:
+    path: "{{ glusterd_libdir }}/glusterd.info"
+    regexp: '^UUID='
+    line: "UUID={{ old_uuid }}"
+  delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
+
+- name: Copy the peer data into local
+  synchronize:
+    mode: pull
+    src: "{{ glusterd_libdir }}/peers"
+    dest: "{{ peer_tmp_dir }}"
+  run_once: true
+
+- name: Copy the peer data of master node
+  fetch:
+    flat: yes
+    src: "{{ glusterd_libdir }}/peers/{{ master_uuid }}"
+    dest: "{{ peer_tmp_dir }}/peers/{{ master_uuid }}"
+  delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
+
+- name: Delete the peer of the old node
+  file:
+    state: absent
+    path: "{{ peer_tmp_dir }}/peers/{{ old_uuid }}"
+  delegate_to: 127.0.0.1
+
+- name: Copy the peer data to remote node
+  copy:
+    src: "{{ peer_tmp_dir }}/peers/"
+    dest: "{{ glusterd_libdir }}/peers"
+  delegate_to: "{{ gluster_maintenance_new_node }}"

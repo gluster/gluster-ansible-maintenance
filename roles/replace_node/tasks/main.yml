@@ -1,0 +1,27 @@
+---
+# Create tmp dir for storing peer data
+- name: Create temporary storage directory
+  tempfile:
+    state: directory
+    suffix: _peer
+  register: tmpdir
+  delegate_to: 127.0.0.1
+  run_once: True
+
+# Set the glusterd location
+- name: Set the path of glusterd.info file
+  set_fact:
+    glusterd_libdir: "/var/lib/glusterd"
+    peer_tmp_dir: "{{ tmpdir['path'] }}"
+
+- import_tasks: peers.yml
+
+- import_tasks: volume.yml
+
+# Ensure to delete the temporary directory
+- name: Delete the temporary directory
+  file:
+     state: absent
+     path: "{{ peer_tmp_dir }}"
+  delegate_to: 127.0.0.1
+  run_once: True

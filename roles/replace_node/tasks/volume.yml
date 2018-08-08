@@ -1,0 +1,106 @@
+---
+# Set up the volume management
+- name: Fetch the directory and volume details
+  block:
+    - name: Get the list of volumes on the machine
+      shell: ls "{{ glusterd_libdir }}/vols"
+      register: dir_list
+
+    - set_fact:
+        volumes: "{{ dir_list.stdout.split() }}"
+
+    # Find the list of bricks on the machine
+    - name: Get the list of bricks corresponding to volume
+      shell: >
+        gluster vol info {{ item }} | grep "Brick.*{{ item }}:" |
+        awk -F: '{ print $3 }'
+      with_items: "{{ volumes }}"
+      register: brick_list
+
+    - set_fact:
+        bricks: []
+        brick_volume_ids: {}
+
+    - name: Get the list of bricks into a variable
+      set_fact:
+        bricks: "{{ bricks + [ item.stdout ] }}"
+      loop: "{{ brick_list.results }}"
+
+    - name: Get the volume id of the bricks
+      shell: >
+        getfattr -d -e hex -m volume-id "{{ item }}" |
+        awk -F= '/volume-id/ { print $2 }'
+      with_items: "{{ bricks }}"
+      register: volume_id_list
+
+    - name: Build {brickpath, volumeid} data
+      set_fact:
+        brick_volume_ids: "{{ brick_volume_ids|combine({item.item: item.stdout}) }}"
+      with_items: "{{ volume_id_list.results }}"
+  delegate_to: "{{ gluster_maintenance_cluster_node }}"
+
+- name: Create the brick directory if not already present
+  file:
+    state: directory
+    path: "{{ item }}"
+    mode: 0755
+  with_items: "{{ bricks }}"
+  delegate_to: "{{ gluster_maintenance_new_node }}"
+
+- name: Set the attribute to the volume
+  shell: >
+    setfattr -n trusted.glusterfs.volume-id -v {{ item.value }} {{ item.key }}
+  loop: "{{ lookup('dict', brick_volume_ids) }}"
+  delegate_to: "{{ gluster_maintenance_new_node }}"
+
+- name: Start glusterd on new node
+  service:
+    name: glusterd
+    state: restarted
+  delegate_to: "{{ gluster_maintenance_new_node }}"
+
+- name: Mount the clients for heal
+  block:
+    - name: Create temporary mount directories
+      file:
+        state: directory
+        path: "/mnt/{{ item }}_tmpfoo"
+        mode: 0755
+      with_items: "{{ volumes }}"
+
+    - name: Mount the volumes
+      mount:
+        name: "/mnt/{{ item }}_tmpfoo"
+        src: "{{ gluster_maintenance_cluster_node }}:{{ item }}"
+        fstype: "glusterfs"
+        state: mounted
+      with_items: "{{ volumes }}"
+
+    # Create and delete a directory on the mount point
+    - name: Create and remove a directory on mount
+      shell: >
+        mkdir "/mnt/{{ item }}_tmpfoo/foo";
+        setfattr -n trusted.glusterfs.foo -v bar "{{ item }}_tmpfoo/foo";
+        setfattr -x trusted.glusterfs.foo "{{ item }}_tmpfoo/foo";
+        rmdir /mnt/"{{ item }}_tmpfoo/foo"
+      with_items: "{{ volumes }}"
+
+    - name: Unmount the volumes
+      mount:
+        name: "/mnt/{{ item }}_tmpfoo"
+        src: "{{ gluster_maintenance_cluster_node }}:{{ item }}"
+        fstype: "glusterfs"
+        state: absent
+      with_items: "{{ volumes }}"
+
+    - name: Delete temporary mount directories
+      file:
+        state: absent
+        path: "/mnt/{{ item }}_tmpfoo"
+        mode: 0755
+      with_items: "{{ volumes }}"
+
+    - name: Heal the volumes
+      shell: gluster volume heal {{ item }} full
+      with_items: "{{ volumes }}"
+  delegate_to: "{{ gluster_maintenance_new_node }}"

@@ -1,0 +1,11 @@
+---
+- remote_user: root
+  gather_facts: no
+  hosts: server
+  vars:
+    - gluster_maintenance_old_node: store
+    - gluster_maintenance_new_node: store
+    - gluster_maintenance_cluster_node: data
+  roles:
+    - gluster.maintenance
+
