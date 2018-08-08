@@ -1,38 +1,57 @@
 Role Name
 =========
 
-A brief description of the role goes here.
+replace_node - Replace gluster node with a new node.
 
 Requirements
 ------------
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+- Ansible >= 2.6
+- lvm2 (Optional)
+
+NOTE: Inventory should contain a single node, which should be part of the cluster. This node should be different than any of the three variables explained below, this requirement is to collect the right peers for the new node.
 
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+| Name                     |Choices| Default value         | Comments                          |
+|--------------------------|-------|-----------------------|-----------------------------------|
+| gluster_maintenance_old_node |    | UNDEF   | The node which has to be replaced with a new node. Just the node name is needed to get the peer id, the node need not be accessible. Provide the name that was used to probe the peers. |
+| gluster_maintenance_new_node |   | UNDEF | New node which will replace the old node. This name can be same as the old node or different name. |
+| gluster_maintenance_cluster_node |  | UNDEF | The node on which the peer, volume-id details are collected. This node should be part of the trusted storage pool. And should be different from old_node or new_node. |
+
+
 
 Dependencies
 ------------
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+Depends on:
+
+- gluster.repositories (Optional: to subscribe to channels)
+- gluster.infra (Optional: to setup bricks)
 
 Example Playbook
 ----------------
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+Note that `server' in the inventory and the variable gluster_maintenance_cluster_node are unique (if the number of nodes are more than 2).
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+```
+---
+- remote_user: root
+  gather_facts: no
+  hosts: server
+  vars:
+    - gluster_maintenance_old_node: store
+    - gluster_maintenance_new_node: store
+    - gluster_maintenance_cluster_node: data
+  roles:
+    - gluster.maintenance
+```
+
+In the above example, a new host named store will replace the old host (the replaced node has the same hostname as the old node, however ensure that old node is not accessible with the hostname, else the results are undefined.
+
 
 License
 -------
 
-BSD
-
-Author Information
-------------------
-
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+GPLv3

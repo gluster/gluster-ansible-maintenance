@@ -48,6 +48,8 @@ Note that `server' in the inventory and the variable gluster_maintenance_cluster
     - gluster.maintenance
 ```
 
+In the above example, a new host named store will replace the old host (the replaced node has the same hostname as the old node, however ensure that old node is not accessible with the hostname, else the results are undefined.
+
 
 License
 -------
