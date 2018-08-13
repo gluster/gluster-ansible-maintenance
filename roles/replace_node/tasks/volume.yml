@@ -18,39 +18,26 @@
       register: brick_list
 
     - set_fact:
-        bricks: []
-        brick_volume_ids: {}
+        volume_bricks: {}
 
     - name: Get the list of bricks into a variable
       set_fact:
-        bricks: "{{ bricks + [ item.stdout ] }}"
+        volume_bricks: "{{ volume_bricks|combine({item.item: item.stdout}) }}"
       loop: "{{ brick_list.results }}"
-
-    - name: Get the volume id of the bricks
-      shell: >
-        getfattr -d -e hex -m volume-id "{{ item }}" |
-        awk -F= '/volume-id/ { print $2 }'
-      with_items: "{{ bricks }}"
-      register: volume_id_list
-
-    - name: Build {brickpath, volumeid} data
-      set_fact:
-        brick_volume_ids: "{{ brick_volume_ids|combine({item.item: item.stdout}) }}"
-      with_items: "{{ volume_id_list.results }}"
   delegate_to: "{{ gluster_maintenance_cluster_node }}"
 
 - name: Create the brick directory if not already present
   file:
     state: directory
-    path: "{{ item }}"
+    path: "{{ item.value }}"
     mode: 0755
-  with_items: "{{ bricks }}"
+  loop: "{{ lookup('dict', volume_bricks) }}"
   delegate_to: "{{ gluster_maintenance_new_node }}"
 
 - name: Set the attribute to the volume
   shell: >
-    setfattr -n trusted.glusterfs.volume-id -v {{ item.value }} {{ item.key }}
-  loop: "{{ lookup('dict', brick_volume_ids) }}"
+    gluster volume reset-brick item.key {{gluster_maintenance_new_node}}:{{item.value}}
+  loop: "{{ lookup('dict', volume_bricks) }}"
   delegate_to: "{{ gluster_maintenance_new_node }}"
 
 - name: Start glusterd on new node
