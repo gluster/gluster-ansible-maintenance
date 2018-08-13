@@ -19,7 +19,7 @@ Role Variables
 | gluster_maintenance_old_node |    | UNDEF   | The node which has to be replaced with a new node. Just the node name is needed to get the peer id, the node need not be accessible. Provide the name that was used to probe the peers. |
 | gluster_maintenance_new_node |   | UNDEF | New node which will replace the old node. This name can be same as the old node or different name. |
 | gluster_maintenance_cluster_node |  | UNDEF | The node on which the peer, volume-id details are collected. This node should be part of the trusted storage pool. And should be different from old_node or new_node. |
-
+| gluster_maintenance_hci_node |  | UNDEF | The ip-address or new hostname of the hci node that has to be replaced, if this variable is defined the node is put into maintenance mode. |
 
 
 Dependencies
