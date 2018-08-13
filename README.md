@@ -9,6 +9,7 @@ Requirements
 - Ansible >= 2.6
 - lvm2 (Optional)
 
+
 NOTE: Inventory should contain a single node, which should be part of the cluster. This node should be different than any of the three variables explained below, this requirement is to collect the right peers for the new node.
 
 Role Variables
@@ -19,7 +20,10 @@ Role Variables
 | gluster_maintenance_old_node |    | UNDEF   | The node which has to be replaced with a new node. Just the node name is needed to get the peer id, the node need not be accessible. Provide the name that was used to probe the peers. |
 | gluster_maintenance_new_node |   | UNDEF | New node which will replace the old node. This name can be same as the old node or different name. |
 | gluster_maintenance_cluster_node |  | UNDEF | The node on which the peer, volume-id details are collected. This node should be part of the trusted storage pool. And should be different from old_node or new_node. |
-| gluster_maintenance_hci_node |  | UNDEF | The ip-address or new hostname of the hci node that has to be replaced, if this variable is defined the node is put into maintenance mode. |
+| gluster_maintenance_ovirt_url |  | UNDEF | URL for the ovirt management node |
+| gluster_maintenance_ovirt_username | | UNDEF | Username for ovirt management node authentication |
+| gluster_maintenance_ovirt_password |  | UNDEF | Password for ovirt management node login |
+| gluster_maintenance_ovirt_cafile | | UNDEF | A PEM file containing the trusted CA certificates. The certificate presented by the server will be verified using these CA certificates. |
 
 
 Dependencies

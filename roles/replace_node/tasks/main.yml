@@ -15,14 +15,30 @@
     peer_tmp_dir: "{{ tmpdir['path'] }}"
 
 # In case of HCI installation, ensure to move the machines to maintenance mode.
-- ovirt_hosts:
-    state: maintenance
-    name: "{{ gluster_maintenance_hci_node }}"
-  when: gluster_maintenance_hci_node is defined
+- block:
+    - name: Obtain SSO token with using username/password credentials
+      ovirt_auth:
+        url: "{{ gluster_maintenance_ovirt_url }}"
+        username: "{{ gluster_maintenance_ovirt_username }}"
+        ca_file: "{{ gluster_maintenance_ovirt_cafile | default('') }}"
+        password: "{{ gluster_maintenance_ovirt_password }}"
+
+    - ovirt_hosts:
+        state: maintenance
+        name: "{{ gluster_maintenance_old_node }}"
+        auth: "{{ ovirt_auth }}"
+  when: gluster_maintenance_ovirt_url is defined
 
 - import_tasks: peers.yml
 
 - import_tasks: volume.yml
+
+# Storage moved to new node, restore the hosts
+- ovirt_hosts:
+    state: present
+    name: "{{ gluster_maintenance_new_node }}"
+    auth: "{{ ovirt_auth }}"
+when: gluster_maintenance_ovirt_url is defined
 
 # Ensure to delete the temporary directory
 - name: Delete the temporary directory
