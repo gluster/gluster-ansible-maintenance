@@ -38,7 +38,7 @@
     state: present
     name: "{{ gluster_maintenance_new_node }}"
     auth: "{{ ovirt_auth }}"
-when: gluster_maintenance_ovirt_url is defined
+  when: gluster_maintenance_ovirt_url is defined
 
 # Ensure to delete the temporary directory
 - name: Delete the temporary directory

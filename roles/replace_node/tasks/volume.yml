@@ -34,17 +34,37 @@
   loop: "{{ lookup('dict', volume_bricks) }}"
   delegate_to: "{{ gluster_maintenance_new_node }}"
 
-- name: Set the attribute to the volume
+- name: Set the volume attributes
   shell: >
-    gluster volume reset-brick item.key {{gluster_maintenance_new_node}}:{{item.value}}
+    gluster volume reset-brick {{ item.key }}
+    {{gluster_maintenance_cluster_node}}:{{item.value}} start
   loop: "{{ lookup('dict', volume_bricks) }}"
-  delegate_to: "{{ gluster_maintenance_new_node }}"
+  delegate_to: "{{ gluster_maintenance_cluster_node }}"
+
+# Commit after reset-brick
+- name: Run reset-brick commit on the brick
+  shell: >
+    gluster volume reset-brick {{ item.key }}
+    {{gluster_maintenance_cluster_node}}:{{item.value}}
+    {{gluster_maintenance_cluster_node}}:{{item.value}}
+    commit force
+  loop: "{{ lookup('dict', volume_bricks) }}"
+  delegate_to: "{{ gluster_maintenance_cluster_node }}"
 
 - name: Start glusterd on new node
   service:
     name: glusterd
     state: restarted
   delegate_to: "{{ gluster_maintenance_new_node }}"
+
+# Somehow resetting the bricks and restarting glusterd does not start
+# the brick processes. Start the brick processes.
+# Can't use the gluster_volume module, it does not support foce for
+# starting volumes
+- name: Run volume start force to bring up brick processes
+  shell: >
+    gluster volume start {{ item }} force
+  with_items: "{{ volumes }}"
 
 - name: Mount the clients for heal
   block:
