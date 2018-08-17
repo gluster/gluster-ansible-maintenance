@@ -24,6 +24,7 @@ Role Variables
 | gluster_maintenance_ovirt_username | | UNDEF | Username for ovirt management node authentication |
 | gluster_maintenance_ovirt_password |  | UNDEF | Password for ovirt management node login |
 | gluster_maintenance_ovirt_cafile | | UNDEF | A PEM file containing the trusted CA certificates. The certificate presented by the server will be verified using these CA certificates. |
+| gluster_maintenance_ovirt_mgmt_host | | UNDEF | This is a mandatory variable if the hosts have to be moved to maintenance/active mode. This is the management hostname, passwordless ssh has to be set to this machine. |
 
 
 Dependencies
