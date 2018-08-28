@@ -47,14 +47,14 @@ Note that `server' in the inventory and the variable gluster_maintenance_cluster
   gather_facts: no
   hosts: server
   vars:
-    - gluster_maintenance_old_node: store
-    - gluster_maintenance_new_node: store
-    - gluster_maintenance_cluster_node: data
+    - gluster_maintenance_old_node: host1.example.com
+    - gluster_maintenance_new_node: host1.example.com
+    - gluster_maintenance_cluster_node: host2.example.com
   roles:
     - gluster.maintenance
 ```
 
-In the above example, a new host named store will replace the old host (the replaced node has the same hostname as the old node, however ensure that old node is not accessible with the hostname, else the results are undefined.
+In the above example, a new host named host1.example.com will replace the old host (the replaced node has the same hostname as the old node, however ensure that old node is not accessible with the hostname, else the results are undefined.
 
 
 License

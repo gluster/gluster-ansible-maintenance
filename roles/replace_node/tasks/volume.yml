@@ -26,14 +26,6 @@
       loop: "{{ brick_list.results }}"
   delegate_to: "{{ gluster_maintenance_cluster_node }}"
 
-- name: Create the brick directory if not already present
-  file:
-    state: directory
-    path: "{{ item.value }}"
-    mode: 0755
-  loop: "{{ lookup('dict', volume_bricks) }}"
-  delegate_to: "{{ gluster_maintenance_new_node }}"
-
 - name: Set the volume attributes using reset-brick
   shell: >
     gluster volume reset-brick {{ item.key }}
