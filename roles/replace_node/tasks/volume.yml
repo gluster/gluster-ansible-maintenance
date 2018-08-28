@@ -34,7 +34,7 @@
   loop: "{{ lookup('dict', volume_bricks) }}"
   delegate_to: "{{ gluster_maintenance_new_node }}"
 
-- name: Set the volume attributes
+- name: Set the volume attributes using reset-brick
   shell: >
     gluster volume reset-brick {{ item.key }}
     {{gluster_maintenance_cluster_node}}:{{item.value}} start
