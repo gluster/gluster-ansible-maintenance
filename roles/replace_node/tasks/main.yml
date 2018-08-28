@@ -1,0 +1,62 @@
+---
+# Currently we support only same node replacement.
+# Change remove this when we enhance the role
+- name: Check if old and new node are same
+  fail:
+    msg: "Hostnames of old and new nodes are not same"
+  when: gluster_maintenance_new_node != gluster_maintenance_old_node
+
+# Create tmp dir for storing peer data
+- name: Create temporary storage directory
+  tempfile:
+    state: directory
+    suffix: _peer
+  register: tmpdir
+  delegate_to: 127.0.0.1
+  run_once: True
+
+# Set the glusterd location
+- name: Set the path of glusterd.info file
+  set_fact:
+    glusterd_libdir: "/var/lib/glusterd"
+    peer_tmp_dir: "{{ tmpdir['path'] }}"
+
+# In case of HCI installation, ensure to move the machines to maintenance mode.
+- block:
+    - name: Obtain SSO token with using username/password credentials
+      ovirt_auth:
+        url: "{{ gluster_maintenance_ovirt_url }}"
+        username: "{{ gluster_maintenance_ovirt_username }}"
+        ca_file: "{{ gluster_maintenance_ovirt_cafile | default('') }}"
+        password: "{{ gluster_maintenance_ovirt_password }}"
+
+    - name: Move the host to maintenance state
+      ovirt_hosts:
+        state: maintenance
+        name: "{{ gluster_maintenance_old_node }}"
+        auth: "{{ ovirt_auth }}"
+  when: gluster_maintenance_ovirt_url is defined and
+        gluster_maintenance_ovirt_mgmt_host is defined
+  delegate_to: "{{ gluster_maintenance_ovirt_mgmt_host }}"
+
+- import_tasks: peers.yml
+
+- import_tasks: volume.yml
+
+# Storage moved to new node, restore the hosts
+- name: Activate the ovirt host
+  ovirt_hosts:
+    state: present
+    name: "{{ gluster_maintenance_new_node }}"
+    auth: "{{ ovirt_auth }}"
+  when: gluster_maintenance_ovirt_url is defined and
+        gluster_maintenance_ovirt_mgmt_host is defined
+  delegate_to: "{{ gluster_maintenance_ovirt_mgmt_host }}"
+
+# Ensure to delete the temporary directory
+- name: Delete the temporary directory
+  file:
+    state: absent
+    path: "{{ peer_tmp_dir }}"
+  delegate_to: 127.0.0.1
+  run_once: True

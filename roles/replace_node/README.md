@@ -11,6 +11,8 @@ Requirements
 
 
 NOTE: Inventory should contain a single node, which should be part of the cluster. This node should be different than any of the three variables explained below, this requirement is to collect the right peers for the new node.
+      The version 0.1 supports node replacement with same name.
+
 
 Role Variables
 --------------
@@ -24,6 +26,7 @@ Role Variables
 | gluster_maintenance_ovirt_username | No | | UNDEF | Username for ovirt management node authentication |
 | gluster_maintenance_ovirt_password | No | | UNDEF | Password for ovirt management node login |
 | gluster_maintenance_ovirt_cafile | No | | UNDEF | A PEM file containing the trusted CA certificates. The certificate presented by the server will be verified using these CA certificates. |
+
 
 Dependencies
 ------------
