@@ -22,7 +22,7 @@ Role Variables
 | gluster_maintenance_cluster_node | Yes | | UNDEF | The node on which the peer, volume-id details are collected. This node should be part of the trusted storage pool, and different from node being replaced.|
 | gluster_maintenance_ovirt_url |  No| | UNDEF | URL for the ovirt management node |
 | gluster_maintenance_ovirt_username | No | | UNDEF | Username for ovirt management node authentication |
-| gluster_maintenance_ovirt_password | No | | UNDEF | Password for ovirt management node login |
+| gluster_maintenance_ovirt_password | No | | UNDEF | Password for ovirt management node login. This variable has to be encrypted using ansible-vault. |
 | gluster_maintenance_ovirt_cafile | No | | UNDEF | A PEM file containing the trusted CA certificates. The certificate presented by the server will be verified using these CA certificates. |
 
 Dependencies
@@ -43,6 +43,7 @@ Note that `server' in the inventory and the variable gluster_maintenance_cluster
 - remote_user: root
   gather_facts: no
   hosts: server
+  no_log: True
   vars:
     - gluster_maintenance_old_node: host1.example.com
     - gluster_maintenance_new_node: host1.example.com
