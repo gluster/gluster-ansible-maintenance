@@ -1,13 +1,14 @@
 %global rolesdir %{_sysconfdir}/ansible/roles/gluster.maintenance
 %global docdir %{_datadir}/doc/gluster.maintenance
+%global buildnum 1
 
 Name:      gluster-ansible-maintenance
-Version:   0.1
+Version:   1.0.0
 Release:   1%{?dist}
 Summary:   Ansible roles for GlusterFS infrastructure management
 
 URL:       https://github.com/gluster/gluster-ansible-maintenance
-Source0:   %{url}/archive/v%{version}.tar.gz#/%{name}-%{version}.tar.gz
+Source0:   %{url}/archive/v%{version}.tar.gz#/%{name}-%{version}-%{buildnum}.tar.gz
 License:   GPLv3
 BuildArch: noarch
 
@@ -19,7 +20,7 @@ replace-node, replace-brick ...
 
 
 %prep
-%setup -q -n %{name}-%{version}
+%autosetup -p1
 
 %build
 
@@ -38,5 +39,8 @@ cp -dpr README.md examples %{buildroot}/%{docdir}
 %license LICENSE
 
 %changelog
+* Thu Feb 21 2019 Sachidananda Urs <sac@redhat.com> 1.0.0-1
+- Bump the version number to 1
+
 * Fri Aug 31 2018 Sachidananda Urs <sac@redhat.com> 0.1
 - Initial release
