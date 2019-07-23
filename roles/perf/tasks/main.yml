@@ -1,0 +1,6 @@
+---
+# Run network performance tasks
+- name: Run tasks to collect network performance
+  import_tasks: netperf.yml
+  tags:
+    - netperf

@@ -1,7 +1,17 @@
 ---
-# tasks file for gluster-ansible-maintenance
-- name: Replace a node
+# Collect the network performance numbers
+- name: Run network performance tools
   import_role:
-    name: "gluster.maintenance/roles/replace_node"
+    name: "gluster.maintenance/roles/perf"
+  when: gluster_maintenance_net_nodes is defined
   tags:
-    - replace_node
+    - network_perf
+
+# # tasks file for gluster-ansible-maintenance
+# - name: Replace a node
+#   import_role:
+#     name: "gluster.maintenance/roles/replace_node"
+#   when: gluster_maintenance_ovirt_url is defined
+#   tags:
+#     - replace_node
+

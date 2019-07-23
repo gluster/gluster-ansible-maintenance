@@ -1,0 +1,63 @@
+---
+- name: Install iperf3 package if not present
+  package:
+     name: iperf3
+     state: present
+
+- name: Open port 5201 for iperf
+  firewalld:
+     port: '5201/tcp'
+     permanent: false
+     state: enabled
+
+- name: iperf result dir
+  set_fact:
+     perfresdir: /tmp/iperf-results
+
+- name: Create temporary directory for iperf results
+  file:
+     path: "{{ perfresdir }}"
+     state: directory
+
+- name: Start iperf3 server on all nodes
+  shell: nohup iperf3 -s > {{perfresdir}}/iperf3_server_{{ inventory_hostname }}.txt </dev/null 2>&1 &
+  async: 7200
+  poll: 0
+
+- name: Run iperf3 tests
+  shell:
+     iperf3 -c {{ item.1 }} -t {{ gluster_maintenance_net_iperf_duration|default(30) }} > {{perfresdir}}/iperf3_client_{{ item.1 }}_server_{{ item.0 }}.txt;
+     ping -c {{ gluster_maintenance_net_ping_duration | default(10) }} {{item.1}} > {{perfresdir}}/ping_client_{{item.1}}_server_{{item.0}}.txt;
+     exit
+  delegate_to: "{{ item.0 }}"
+  run_once: true
+  when: item.0 != item.1
+  with_nested:
+     - "{{ gluster_maintenance_net_nodes }}"
+     - "{{ gluster_maintenance_net_nodes }}"
+
+- name: Stop iperf3 on all nodes
+  shell: pkill -x iperf3
+
+# Collect the results
+- name: Gather facts to determine timestamp
+  setup:
+     gather_subset:
+        - '!all'
+        - '!any'
+        - date_time
+  tags:
+     - always
+
+- name: Get the timestamp
+  set_fact:
+     ts: "{{ ansible_date_time.epoch }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Collect the results into a directory
+  synchronize:
+     src: "{{ perfresdir }}/"
+     dest: /tmp/run_{{ ts }}/
+     dirs: yes
+     mode: pull
