@@ -3,9 +3,9 @@
 - name: Run network performance tools
   import_role:
     name: "gluster.maintenance/roles/perf"
-  when: gluster_maintenance_net_nodes is defined
+  when: gluster_maintenance_net_perf_nodes is defined
   tags:
-    - network_perf
+    - perf
 
 # # tasks file for gluster-ansible-maintenance
 # - name: Replace a node

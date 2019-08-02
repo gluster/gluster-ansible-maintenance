@@ -1,0 +1,43 @@
+---
+# Run pre-requisite tests for collecting ioperf data
+- name: Pre-requisites check
+  import_tasks: prereq.yml
+  tags:
+     - prereq
+
+- name: Start data collection processes
+  import_tasks: collect_start.yml
+  tags:
+     - servicestart
+
+- name: Run sequential write tests
+  import_tasks: run_seq_write_tests.yml
+  tags:
+     - seqwrite
+
+- name: Collect the results
+  import_tasks: gather_results.yml
+  tags:
+     - collectresults
+
+- name: Start data collection processes (seq-write-direct)
+  import_tasks: collect_start.yml
+  tags:
+     - servicestart
+
+- name: Run sequential write direct
+  import_tasks: run_seq_libaio_tests.yml
+  tags:
+     - aiowrite
+
+- name: Collect the results
+  import_tasks: gather_results.yml
+  tags:
+     - collectresults
+
+# Cleanup
+- name: Clean up the data on mountpoint
+  file:
+     path: "{{ fiodir }}"
+     state: absent
+

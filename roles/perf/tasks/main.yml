@@ -1,5 +1,77 @@
 ---
-# Run network performance tasks
+# Run performance number gathering tasks tasks
+
+# Collect the results
+- name: Gather facts to determine timestamp
+  setup:
+     gather_subset:
+        - '!all'
+        - '!any'
+        - date_time
+  tags:
+     - always
+
+- name: perf result dir
+  set_fact:
+     perfresdir: /var/tmp/perf-results
+  tags:
+     - always
+
+- set_fact:
+     g_mount: "{{ gluster_maintenance_mountpoint }}"
+  when: gluster_maintenance_mountpoint is defined
+  tags:
+     - ioperftests
+
+- set_fact:
+     perf_master: "{{ gluster_maintenance_net_perf_nodes[0] }}"
+  tags:
+     - always
+
+- set_fact:
+     ioresdir: "{{ perfresdir }}/ioresults_{{inventory_hostname}}"
+  tags:
+     - always
+
+- name: Create temporary directory for I/O results
+  file:
+     path: "{{ ioresdir }}"
+     state: directory
+  tags:
+     - always
+
+- name: Create temporary directory for perf results
+  file:
+     path: "{{ perfresdir }}"
+     state: directory
+  tags:
+     - always
+
+- block:
+     - name: Get the timestamp
+       set_fact:
+          ts: "{{ ansible_date_time.epoch }}"
+
+     - name: Set local result dir
+       set_fact:
+          localresdir: "/tmp/perf_run_{{ts}}"
+
+     - name: Create directory locally to store results
+       file:
+          path: "{{ localresdir }}"
+          state: directory
+  delegate_to: localhost
+  run_once: true
+  tags:
+     - always
+
+# Run the ioperf tests
+- name: ioperf tests
+  import_tasks: ioperftest.yml
+  tags:
+    - ioperftests
+
+# Collect network performance data
 - name: Run tasks to collect network performance
   import_tasks: netperf.yml
   tags:

@@ -10,54 +10,50 @@
      permanent: false
      state: enabled
 
-- name: iperf result dir
-  set_fact:
-     perfresdir: /tmp/iperf-results
+- set_fact:
+     iperf_res: "{{ perfresdir }}/iperf"
 
-- name: Create temporary directory for iperf results
+- set_fact:
+     iperf_duration: "{{gluster_maintenance_iperf_duration|default(30)}}"
+
+- set_fact:
+     ping_duration: "{{gluster_maintenance_ping_duration | default(10)}}"
+
+- name: Create directory for iperf result collection
   file:
-     path: "{{ perfresdir }}"
+     path: "{{ iperf_res }}"
      state: directory
 
 - name: Start iperf3 server on all nodes
-  shell: nohup iperf3 -s > {{perfresdir}}/iperf3_server_{{ inventory_hostname }}.txt </dev/null 2>&1 &
+  shell: |
+     nohup iperf3 -s > {{iperf_res}}/iperf3_server_{{inventory_hostname}}.txt\
+           </dev/null 2>&1 &
   async: 7200
   poll: 0
 
 - name: Run iperf3 tests
-  shell:
-     iperf3 -c {{ item.1 }} -t {{ gluster_maintenance_net_iperf_duration|default(30) }} > {{perfresdir}}/iperf3_client_{{ item.1 }}_server_{{ item.0 }}.txt;
-     ping -c {{ gluster_maintenance_net_ping_duration | default(10) }} {{item.1}} > {{perfresdir}}/ping_client_{{item.1}}_server_{{item.0}}.txt;
-     exit
+  shell: >
+     iperf3 -c {{ item.1 }} -t {{ iperf_duration }} > \
+       {{iperf_res}}/iperf3_client_{{ item.1 }}_server_{{ item.0 }}.txt;
+     ping -c {{ ping_duration }} {{item.1}} > \
+       {{iperf_res}}/ping_client_{{item.1}}_server_{{item.0}}.txt;
   delegate_to: "{{ item.0 }}"
   run_once: true
   when: item.0 != item.1
   with_nested:
-     - "{{ gluster_maintenance_net_nodes }}"
-     - "{{ gluster_maintenance_net_nodes }}"
+     - "{{ gluster_maintenance_net_perf_nodes }}"
+     - "{{ gluster_maintenance_net_perf_nodes }}"
 
 - name: Stop iperf3 on all nodes
-  shell: pkill -x iperf3
-
-# Collect the results
-- name: Gather facts to determine timestamp
-  setup:
-     gather_subset:
-        - '!all'
-        - '!any'
-        - date_time
-  tags:
-     - always
-
-- name: Get the timestamp
-  set_fact:
-     ts: "{{ ansible_date_time.epoch }}"
-  delegate_to: localhost
-  run_once: true
+  command: pkill -x iperf3
 
 - name: Collect the results into a directory
   synchronize:
-     src: "{{ perfresdir }}/"
-     dest: /tmp/run_{{ ts }}/
+     src: "{{ iperf_res }}"
+     dest: "{{ localresdir }}/"
      dirs: yes
      mode: pull
+
+- debug:
+    msg: "Test results are stored in {{localresdir}}"
+  run_once: true

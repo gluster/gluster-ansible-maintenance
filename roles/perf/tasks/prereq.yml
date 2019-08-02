@@ -1,0 +1,67 @@
+---
+- name: Run some pre-requisite tests
+  block:
+    - name: Check if the volume exists
+      shell: |
+         gluster volume info {{ gluster_maintenance_volname }} |
+           awk -F: '/Name:/ {print $2}'
+      register: volinfo
+
+    - assert:
+         that:
+            - "gluster_maintenance_volname in volinfo.stdout"
+         fail_msg: "Volume {{ gluster_maintenance_volname }} not found"
+         success_msg: "PASS: Volume {{ gluster_maintenance_volname }} found."
+
+    - name: Check if all bricks are up
+      shell: |
+         gluster vol status {{ gluster_maintenance_volname }} |
+           awk '/Brick /{print $5}' | grep 'N' | wc -l
+      register: brstatus
+
+    - assert:
+         that:
+            - brstatus.stdout|int == 0
+         fail_msg: "One or more bricks are down, please check brick status"
+         success_msg: "PASS: All bricks are up and running."
+
+    - name: Check for pending self-heals (if any)
+      shell: |
+         gluster volume heal {{ gluster_maintenance_volname }} info |
+           awk -F: '/ entries:/{ print $2}' | grep -v 0 | wc -l
+      register: healstatus
+
+    - assert:
+         that:
+            - healstatus.stdout|int == 0
+         fail_msg: "There are pending self-heals, aborting!"
+         success_msg: "PASS: No files pending for self-heal."
+
+    - name: Enable gluster profile on the volume
+      shell: |
+         gluster volume profile {{ gluster_maintenance_volname }} start
+      register: prof
+      failed_when:
+         - "'is already started' not in prof.stderr"
+         - "'has been successful' not in prof.stdout"
+
+    - name: Clear the stats, to start afresh
+      shell: |
+         gluster volume profile {{ gluster_maintenance_volname }} info clear
+  delegate_to: "{{ perf_master }}"
+  run_once: true
+
+# Check if gluster mount has 17G of space
+- name: Check if gluster mount has enough disk space
+  shell: df -m {{ gluster_maintenance_mountpoint }} | awk '/[0-9]%/ {print $4}'
+  register: disk_size
+  run_once: true
+  delegate_to: "{{ gluster_maintenance_client }}"
+
+- assert:
+    that:
+      - "disk_size.stdout|int > 17000"
+    fail_msg: "Minimum available size should be greater than or equal to 17G. \
+               Only {{disk_size.stdout|int/1000}}G available."
+  delegate_to: "{{ gluster_maintenance_client }}"
+  run_once: true
