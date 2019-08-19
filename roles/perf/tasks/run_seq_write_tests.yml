@@ -1,6 +1,7 @@
 ---
 - set_fact:
      profile_name: 'seq-write'
+  run_once: true
 
 - name: Run fio tests
   shell: |

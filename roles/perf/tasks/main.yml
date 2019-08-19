@@ -1,49 +1,64 @@
 ---
 # Run performance number gathering tasks tasks
 
-# Collect the results
-- name: Gather facts to determine timestamp
-  setup:
-     gather_subset:
-        - '!all'
-        - '!any'
-        - date_time
-  tags:
-     - always
+# Fact collection and initialization block
+- block:
+     # Check for mandatory variables, fail if not set
+     - name: Check if mandatory variables are set
+       assert:
+         that:
+            - "{{item}} is defined"
+         fail_msg: "FAIL: variable {{item}} not set"
+         success_msg: "PASS: variable {{item}} is defined."
+       run_once: true
+       delegate_to: localhost
+       with_items:
+         - gluster_maintenance_volname
+         - gluster_maintenance_mountpoint
+         - gluster_maintenance_client
 
-- name: perf result dir
-  set_fact:
-     perfresdir: /var/tmp/perf-results
-  tags:
-     - always
+     # We run this test separately since vm stats can be collected
+     # separately.
+     - name: Check if variables for vm are set
+       assert:
+         that:
+            - "gluster_maintenance_vm is defined"
+         fail_msg: "FAIL: variable gluster_maintenance_vm not set"
+         success_msg: "PASS: variable gluster_maintenance_vm is defined."
+       run_once: true
+       delegate_to: localhost
+       tags: vmstat
 
-- set_fact:
-     g_mount: "{{ gluster_maintenance_mountpoint }}"
-  when: gluster_maintenance_mountpoint is defined
-  tags:
-     - ioperftests
+     - name: Gather facts to determine timestamp
+       setup:
+          gather_subset:
+             - '!all'
+             - '!any'
+             - date_time
 
-- set_fact:
-     perf_master: "{{ gluster_maintenance_net_perf_nodes[0] }}"
-  tags:
-     - always
+     - name: perf result dir
+       set_fact:
+          perfresdir: /var/tmp/perf-results
 
-- set_fact:
-     ioresdir: "{{ perfresdir }}/ioresults_{{inventory_hostname}}"
-  tags:
-     - always
+     - set_fact:
+          g_mount: "{{ gluster_maintenance_mountpoint }}"
+       when: gluster_maintenance_mountpoint is defined
 
-- name: Create temporary directory for I/O results
-  file:
-     path: "{{ ioresdir }}"
-     state: directory
-  tags:
-     - always
+     - set_fact:
+          perf_master: "{{ gluster_maintenance_net_perf_nodes[0] }}"
 
-- name: Create temporary directory for perf results
-  file:
-     path: "{{ perfresdir }}"
-     state: directory
+     - set_fact:
+          ioresdir: "{{ perfresdir }}/ioresults_{{inventory_hostname}}"
+
+     - name: Create temporary directory for I/O results
+       file:
+          path: "{{ ioresdir }}"
+          state: directory
+
+     - name: Create temporary directory for perf results
+       file:
+          path: "{{ perfresdir }}"
+          state: directory
   tags:
      - always
 

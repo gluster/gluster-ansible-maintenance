@@ -41,3 +41,138 @@
      path: "{{ fiodir }}"
      state: absent
 
+# BEGIN phase-2: data collection on hypervisor and virutual machine.
+# Run pre-requisite tests for collecting ioperf data
+- block:
+     - debug:
+          msg: START PHASE-2 - gathering perf results from VM and hosts
+       run_once: true
+
+     - set_fact:
+          gluster_maintenance_client: "{{ gluster_maintenance_vm }}"
+       run_once: true
+
+     # Run on servers
+     - name: Clear caches on servers
+       shell: sync; echo 3 > /proc/sys/vm/drop_caches
+
+     # Run on the client
+     - name: Clear caches on VM
+       shell: sync; echo 3 > /proc/sys/vm/drop_caches
+       delegate_to: "{{ gluster_maintenance_client }}"
+       run_once: true
+
+     - name: Pre-requisites check
+       import_tasks: prereq.yml
+       tags:
+          - prereq
+
+     # Here we rename the ioresdir variable to create a new directory for vm
+     - set_fact:
+          ioresdir: "{{ perfresdir }}/ioresults_VM-0"
+       run_once: true
+       delegate_to: "{{ gluster_maintenance_client }}"
+
+     # Create a directory inside the VM where data will be stored
+     - set_fact:
+          g_mount: "{{ gluster_maintenance_vmdir|default('/home/foo') }}"
+       run_once: true
+
+     - name: Create temporary directory on VM for I/O results
+       file:
+          path: "{{ ioresdir }}"
+          state: directory
+       delegate_to: "{{ gluster_maintenance_client }}"
+       run_once: true
+
+     - name: Create temporary directory on servers for I/O results
+       file:
+          path: "{{ ioresdir }}"
+          state: directory
+
+     # Run stat collection daemons on the virtual machine
+     - name: Start data collection processes on the VM
+       import_tasks: collect_start.yml
+       delegate_to: "{{ gluster_maintenance_client }}"
+       run_once: true
+       tags:
+          - vmservicestart
+
+     # Run stat collection daemons on all the hosts
+     - name: Start data collection processes on servers
+       import_tasks: collect_start.yml
+       tags:
+          - vmservicestart
+
+     - name: Run sequential write tests
+       import_tasks: run_seq_write_tests.yml
+       run_once: true
+       tags:
+          - vmseqwrite
+
+     - name: Collect the results from hosts
+       import_tasks: gather_results.yml
+       tags:
+          - vmcollectresults
+
+     # Gather results from the vm
+     - name: Collect the results from the VM
+       command: scp -r root@{{gluster_maintenance_client}}:{{ioresdir}} {{ localresdir }}
+       delegate_to: localhost
+       run_once: true
+
+     - set_fact:
+          ioresdir: "{{ perfresdir }}/ioresults_VM-1"
+       run_once: true
+       delegate_to: "{{ gluster_maintenance_client }}"
+
+     - name: Create temporary directory on VM for I/O results
+       file:
+          path: "{{ ioresdir }}"
+          state: directory
+       delegate_to: "{{ gluster_maintenance_client }}"
+       run_once: true
+
+     - name: Start data collection processes
+       import_tasks: collect_start.yml
+       tags:
+          - vmservicestart
+
+     # Run stat collection daemons on all the hosts
+     - name: Start data collection processes
+       import_tasks: collect_start.yml
+       delegate_to: "{{ gluster_maintenance_client }}"
+       tags:
+          - vmservicestart
+
+     - name: Run fio tests
+       shell: |
+          fio --name=writetest --ioengine=sync --rw=write --direct=1 \
+              --create_on_open=1 --end_fsync=1 --bs=128k --directory={{fiodir}} \
+              --filename_format=f.\$jobnum.\$filenum \
+              --filesize={{gluster_maintenance_fio_size_gb|default(16)}}g \
+              --size={{gluster_maintenance_fio_size_gb|default(16)}}g \
+              --numjobs={{gluster_maintenance_fio_numjobs|default(16)}} \
+              --output="{{ioresdir}}/vm-seq-write-direct.out"
+       delegate_to: "{{ gluster_maintenance_client }}"
+       run_once: true
+
+     - name: Collect the results
+       import_tasks: gather_results.yml
+       tags:
+          - collectresults
+
+     # Gather results from the vm
+     - name: Collect the results from the VM
+       command: scp -r root@{{gluster_maintenance_client}}:{{ioresdir}} {{ localresdir }}
+       delegate_to: localhost
+       run_once: true
+
+     # Cleanup
+     - name: Clean up the data on mountpoint
+       file:
+          path: "{{ fiodir }}"
+          state: absent
+       delegate_to: "{{ gluster_maintenance_client }}"
+  tags:
+     - vmstat

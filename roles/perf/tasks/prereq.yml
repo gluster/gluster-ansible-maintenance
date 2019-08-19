@@ -51,17 +51,17 @@
   delegate_to: "{{ perf_master }}"
   run_once: true
 
-# Check if gluster mount has 17G of space
-- name: Check if gluster mount has enough disk space
-  shell: df -m {{ gluster_maintenance_mountpoint }} | awk '/[0-9]%/ {print $4}'
-  register: disk_size
-  run_once: true
-  delegate_to: "{{ gluster_maintenance_client }}"
+# # Check if gluster mount has 17G of space
+# - name: Check if gluster mount has enough disk space
+#   shell: df -m {{ gluster_maintenance_mountpoint }} | awk '/[0-9]%/ {print $4}'
+#   register: disk_size
+#   run_once: true
+#   delegate_to: "{{ gluster_maintenance_client }}"
 
-- assert:
-    that:
-      - "disk_size.stdout|int > 17000"
-    fail_msg: "Minimum available size should be greater than or equal to 17G. \
-               Only {{disk_size.stdout|int/1000}}G available."
-  delegate_to: "{{ gluster_maintenance_client }}"
-  run_once: true
+# - assert:
+#     that:
+#       - "disk_size.stdout|int > 17000"
+#     fail_msg: "Minimum available size should be greater than or equal to 17G. \
+#                Only {{disk_size.stdout|int/1000}}G available."
+#   delegate_to: "{{ gluster_maintenance_client }}"
+#   run_once: true
