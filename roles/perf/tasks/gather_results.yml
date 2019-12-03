@@ -8,6 +8,9 @@
 - name: Stop top on all nodes
   shell: pkill -x top; echo
 
+- set_fact:
+     ioresdir: "{{ perfresdir }}/ioresults_{{inventory_hostname}}"
+
 - name: Get gluster volume profile info
   shell: |
      gluster volume profile {{gluster_maintenance_volname}} info incremental \

@@ -1,6 +1,14 @@
 ---
 # Run performance number gathering tasks tasks
 
+- name: Install iperf3 package if not present
+  package:
+     name: "{{ item }}"
+     state: present
+  with_items:
+     - iperf3
+     - fio
+
 # Fact collection and initialization block
 - block:
      # Check for mandatory variables, fail if not set
@@ -16,6 +24,7 @@
          - gluster_maintenance_volname
          - gluster_maintenance_mountpoint
          - gluster_maintenance_client
+         - gluster_maintenance_net_perf_nodes
 
      # We run this test separately since vm stats can be collected
      # separately.

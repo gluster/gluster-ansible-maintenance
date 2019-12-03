@@ -67,9 +67,8 @@
        tags:
           - prereq
 
-     # Here we rename the ioresdir variable to create a new directory for vm
      - set_fact:
-          ioresdir: "{{ perfresdir }}/ioresults_VM-0"
+          vm0resdir: "{{ perfresdir }}/ioresults_VM-0"
        run_once: true
        delegate_to: "{{ gluster_maintenance_client }}"
 
@@ -80,14 +79,14 @@
 
      - name: Create temporary directory on VM for I/O results
        file:
-          path: "{{ ioresdir }}"
+          path: "{{ vm0resdir }}"
           state: directory
        delegate_to: "{{ gluster_maintenance_client }}"
        run_once: true
 
      - name: Create temporary directory on servers for I/O results
        file:
-          path: "{{ ioresdir }}"
+          path: "{{ vm0resdir }}"
           state: directory
 
      # Run stat collection daemons on the virtual machine
@@ -116,19 +115,19 @@
           - vmcollectresults
 
      # Gather results from the vm
-     - name: Collect the results from the VM
-       command: scp -r root@{{gluster_maintenance_client}}:{{ioresdir}} {{ localresdir }}
+     - name: Collect the results from the VM-0
+       command: scp -r root@{{gluster_maintenance_client}}:{{vm0resdir}} {{ localresdir }}
        delegate_to: localhost
        run_once: true
 
      - set_fact:
-          ioresdir: "{{ perfresdir }}/ioresults_VM-1"
+          vm1resdir: "{{ perfresdir }}/ioresults_VM-1"
        run_once: true
        delegate_to: "{{ gluster_maintenance_client }}"
 
      - name: Create temporary directory on VM for I/O results
        file:
-          path: "{{ ioresdir }}"
+          path: "{{ vm1resdir }}"
           state: directory
        delegate_to: "{{ gluster_maintenance_client }}"
        run_once: true
@@ -153,7 +152,7 @@
               --filesize={{gluster_maintenance_fio_size_gb|default(16)}}g \
               --size={{gluster_maintenance_fio_size_gb|default(16)}}g \
               --numjobs={{gluster_maintenance_fio_numjobs|default(16)}} \
-              --output="{{ioresdir}}/vm-seq-write-direct.out"
+              --output="{{vm1resdir}}/vm-seq-write-direct.out"
        delegate_to: "{{ gluster_maintenance_client }}"
        run_once: true
 
@@ -163,8 +162,8 @@
           - collectresults
 
      # Gather results from the vm
-     - name: Collect the results from the VM
-       command: scp -r root@{{gluster_maintenance_client}}:{{ioresdir}} {{ localresdir }}
+     - name: Collect the results from the VM-1
+       command: scp -r root@{{gluster_maintenance_client}}:{{vm1resdir}} {{ localresdir }}
        delegate_to: localhost
        run_once: true
 
@@ -174,5 +173,7 @@
           path: "{{ fiodir }}"
           state: absent
        delegate_to: "{{ gluster_maintenance_client }}"
+       run_once: true
+       ignore_errors: true
   tags:
      - vmstat

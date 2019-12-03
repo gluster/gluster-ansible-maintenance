@@ -1,9 +1,4 @@
 ---
-- name: Install iperf3 package if not present
-  package:
-     name: iperf3
-     state: present
-
 - name: Open port 5201 for iperf
   firewalld:
      port: '5201/tcp'
