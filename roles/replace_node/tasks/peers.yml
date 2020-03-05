@@ -18,7 +18,6 @@
 - name: Get the UUID of master
   shell: awk -F= '/UUID/{print $2}' "{{ glusterd_libdir }}/glusterd.info"
   register: master_uuid
-  run_once: true
 
 - name: Store the UUID
   set_fact:
