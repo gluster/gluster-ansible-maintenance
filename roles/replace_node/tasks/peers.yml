@@ -7,6 +7,14 @@
   register: old_node_uuid
   run_once: true
 
+- name: Fetch the cluster_node UUID of the cluster node 2
+  shell: >
+    gluster peer status |
+    grep -A1 {{ gluster_maintenance_cluster_node_2 | mandatory }} |
+    awk -F: '/uid/ { print $2}'
+  register: cluster_node_uuid
+  run_once: true
+
 - name: Get the UUID of master
   shell: awk -F= '/UUID/{print $2}' "{{ glusterd_libdir }}/glusterd.info"
   register: master_uuid
@@ -16,6 +24,44 @@
   set_fact:
     old_uuid: "{{ old_node_uuid.stdout | trim }}"
     master_uuid: "{{ master_uuid.stdout }}"
+    cluster_uuid: "{{ cluster_node_uuid.stdout | trim }}"
+
+- name: Copy the details of peers from cluster_node 2
+  fetch:
+    src: "{{ glusterd_libdir }}/peers/{{ master_uuid }}"
+    dest: /tmp/peers/
+    flat: yes
+  delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
+
+- name: Copy the details of the old node
+  fetch:
+    src: "{{ glusterd_libdir }}/peers/{{ cluster_uuid }}"
+    dest: /tmp/peers/
+    flat: yes
+  delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
+
+- name: stop the gluster service
+  shell: >
+    systemctl stop glusterd
+  delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
+
+- name: Delete the glusterd library from the old host
+  file:
+    path: "{{ glusterd_libdir }}"
+    state: absent
+  delegate_to: "{{ gluster_maintenance_old_node }}"
+
+- name: Restart glusterd
+  shell: >
+    systemctl restart glusterd
+  delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
+
+- pause: seconds=15
+
+- name: stop the gluster service
+  shell: >
+    systemctl stop glusterd
+  delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
 
 - name: Edit the new node's gluster.info
   lineinfile:
@@ -24,28 +70,22 @@
     line: "UUID={{ old_uuid }}"
   delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
 
-- name: Copy the peer data into local
-  synchronize:
-    mode: pull
-    src: "{{ glusterd_libdir }}/peers"
-    dest: "{{ peer_tmp_dir }}"
-  run_once: true
+- name: Copy the peer data to new node
+  copy:
+    src: "{{ item }}"
+    dest: "{{ glusterd_libdir }}/peers/"
+  with_fileglob:
+    - /tmp/peers/*
+  delegate_to: "{{ gluster_maintenance_new_node }}"
 
-- name: Copy the peer data of master node
-  fetch:
-    flat: yes
-    src: "{{ glusterd_libdir }}/peers/{{ master_uuid }}"
-    dest: "{{ peer_tmp_dir }}/peers/{{ master_uuid }}"
+- name: Delete temp directory
+  file:
+    path: "/tmp/peers/"
+    state: absent
   delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
 
-- name: Delete the peer of the old node
-  file:
-    state: absent
-    path: "{{ peer_tmp_dir }}/peers/{{ old_uuid }}"
-  delegate_to: 127.0.0.1
+- name: Start glusterd service
+  shell: >
+    systemctl start glusterd
+  delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
 
-- name: Copy the peer data to remote node
-  copy:
-    src: "{{ peer_tmp_dir }}/peers/"
-    dest: "{{ glusterd_libdir }}/peers"
-  delegate_to: "{{ gluster_maintenance_new_node }}"
