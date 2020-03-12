@@ -40,7 +40,6 @@
     flat: yes
   delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
 
-
 - name: stop the gluster service
   shell: >
     systemctl stop glusterd
@@ -57,9 +56,11 @@
     systemctl restart glusterd
   delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
 
+- pause: seconds=15
+
 - name: stop the gluster service
   shell: >
-      systemctl stop glusterd
+    systemctl stop glusterd
   delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
 
 - name: Edit the new node's gluster.info
@@ -76,6 +77,12 @@
   with_fileglob:
     - /tmp/peers/*
   delegate_to: "{{ gluster_maintenance_new_node }}"
+
+- name: Delete temp directory
+  file:
+    path: "/tmp/peers/"
+    state: absent
+  delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
 
 - name: Start glusterd service
   shell: >

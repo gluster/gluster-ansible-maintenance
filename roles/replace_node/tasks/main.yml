@@ -31,7 +31,7 @@
         password: "{{ gluster_maintenance_ovirt_password }}"
 
     - name: Move the host to maintenance state
-      ovirt_hosts:
+      ovirt_host:
         state: maintenance
         name: "{{ gluster_maintenance_old_node }}"
         auth: "{{ ovirt_auth }}"
@@ -40,12 +40,17 @@
   delegate_to: "{{ gluster_maintenance_ovirt_mgmt_host }}"
 
 - import_tasks: peers.yml
-
+  when: gluster_maintenance_old_node is defined and 
+        gluster_maintenance_cluster_node is defined and
+        gluster_maintenance_cluster_node_2 is defined
 - import_tasks: volume.yml
+  when: gluster_maintenance_old_node is defined and
+        gluster_maintenance_cluster_node is defined and
+        gluster_maintenance_cluster_node_2 is defined
 
 # Storage moved to new node, restore the hosts
 - name: Activate the ovirt host
-  ovirt_hosts:
+  ovirt_host:
     state: present
     name: "{{ gluster_maintenance_new_node }}"
     auth: "{{ ovirt_auth }}"
@@ -60,3 +65,4 @@
     path: "{{ peer_tmp_dir }}"
   delegate_to: 127.0.0.1
   run_once: True
+
