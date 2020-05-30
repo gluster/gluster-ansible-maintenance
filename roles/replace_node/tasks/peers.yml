@@ -7,6 +7,10 @@
   register: old_node_uuid
   run_once: true
 
+- name: Fail if parsed hostname is different from the back-end FQDN
+  fail: msg="Hostname mentioned in inventory should be same with back-end gluster FQDN"
+  when: old_node_uuid.stdout == ""
+
 - name: Fetch the cluster_node UUID of the cluster node 2
   shell: >
     gluster peer status |
@@ -26,18 +30,20 @@
     master_uuid: "{{ master_uuid.stdout }}"
     cluster_uuid: "{{ cluster_node_uuid.stdout | trim }}"
 
-- name: Copy the details of peers from cluster_node 2
-  fetch:
-    src: "{{ glusterd_libdir }}/peers/{{ master_uuid }}"
+- name: Copy all the peers from cluster_node 2
+  copy:
+    src: "{{ item }}"
     dest: /tmp/peers/
-    flat: yes
+  with_fileglob:
+    - "{{ glusterd_libdir }}/peers/*"
   delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
 
-- name: Copy the details of the old node
-  fetch:
-    src: "{{ glusterd_libdir }}/peers/{{ cluster_uuid }}"
+- name: Copy all the peers from cluster node
+  copy:
+    src: "{{ item }}"
     dest: /tmp/peers/
-    flat: yes
+  with_fileglob:
+    - "{{ glusterd_libdir }}/peers/*"
   delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
 
 - name: stop the gluster service
@@ -63,13 +69,19 @@
     systemctl stop glusterd
   delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
 
-- name: Edit the new node's gluster.info
+- name: Edit the new node's glusterd.info
   lineinfile:
     path: "{{ glusterd_libdir }}/glusterd.info"
     regexp: '^UUID='
     line: "UUID={{ old_uuid }}"
   delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
 
+- name: Remove the old node uuid from the extracted peer details
+  file:
+    path: "{{ peer_tmp_dir }}/{{ old_uuid }}"
+    state: absent
+  delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
+  
 - name: Copy the peer data to new node
   copy:
     src: "{{ item }}"
