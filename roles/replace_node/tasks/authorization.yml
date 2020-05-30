@@ -1,0 +1,25 @@
+- name: Create temp directory for authorization files
+  file:
+    path: /tmp/authorized
+    state: directory
+  delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
+
+- name: Fetch the authorized keys from the cluster node
+  copy:
+    src: "~/.ssh/authorized_keys"
+    dest: /tmp/authorized/
+  delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
+
+- name: Copying the authorized keys to the new node
+  copy:
+    src: "{{ item }}"
+    dest: "~/.ssh/"
+  with_fileglob:
+    - /tmp/authorized/*
+  delegate_to: "{{ gluster_maintenance_new_node }}"
+
+- name: Delete temp directory
+  file:
+    path: "/tmp/authorized"
+    state: absent
+  delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
