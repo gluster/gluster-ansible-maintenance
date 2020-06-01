@@ -1,11 +1,6 @@
 ---
 # Currently we support only same node replacement.
 # Change remove this when we enhance the role
-- name: Check if old and new node are same
-  fail:
-    msg: "Hostnames of old and new nodes are not same"
-  when: gluster_maintenance_new_node != gluster_maintenance_old_node
-
 # Create tmp dir for storing peer data
 - name: Create temporary storage directory
   tempfile:
@@ -23,40 +18,21 @@
 
 # In case of HCI installation, ensure to move the machines to maintenance mode.
 - block:
-    - name: Obtain SSO token with using username/password credentials
-      ovirt_auth:
-        url: "{{ gluster_maintenance_ovirt_url }}"
-        username: "{{ gluster_maintenance_ovirt_username }}"
-        ca_file: "{{ gluster_maintenance_ovirt_cafile | default('') }}"
-        password: "{{ gluster_maintenance_ovirt_password }}"
 
-    - name: Move the host to maintenance state
-      ovirt_host:
-        state: maintenance
-        name: "{{ gluster_maintenance_old_node }}"
-        auth: "{{ ovirt_auth }}"
-  when: gluster_maintenance_ovirt_url is defined and
-        gluster_maintenance_ovirt_mgmt_host is defined
-  delegate_to: "{{ gluster_maintenance_ovirt_mgmt_host }}"
+- import_tasks: authorization.yml
+  when: gluster_maintenance_old_node is defined and
+        gluster_maintenance_cluster_node is defined and
+        gluster_maintenance_cluster_node_2 is defined
 
 - import_tasks: peers.yml
   when: gluster_maintenance_old_node is defined and 
         gluster_maintenance_cluster_node is defined and
         gluster_maintenance_cluster_node_2 is defined
+
 - import_tasks: volume.yml
   when: gluster_maintenance_old_node is defined and
         gluster_maintenance_cluster_node is defined and
         gluster_maintenance_cluster_node_2 is defined
-
-# Storage moved to new node, restore the hosts
-- name: Activate the ovirt host
-  ovirt_host:
-    state: present
-    name: "{{ gluster_maintenance_new_node }}"
-    auth: "{{ ovirt_auth }}"
-  when: gluster_maintenance_ovirt_url is defined and
-        gluster_maintenance_ovirt_mgmt_host is defined
-  delegate_to: "{{ gluster_maintenance_ovirt_mgmt_host }}"
 
 # Ensure to delete the temporary directory
 - name: Delete the temporary directory
