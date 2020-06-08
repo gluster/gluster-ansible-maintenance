@@ -12,7 +12,7 @@
     # Find the list of bricks on the machine
     - name: Get the list of bricks corresponding to volume
       shell: >
-        gluster vol info {{ item }} | grep {{ gluster_maintenance_cluster_node }} |
+        gluster vol info {{ item }} | grep {{ gluster_maintenance_old_node }} |
         awk -F: '{ print $3 }'
       with_items: "{{ volumes }}"
       register: brick_list
@@ -29,8 +29,8 @@
 - name: Run replace-brick commit on the brick
   shell: >
     gluster volume replace-brick {{ item.key }}
-    {{gluster_maintenance_cluster_node}}:{{item.value}}
-    {{gluster_maintenance_cluster_node}}:{{item.value}}
+    {{gluster_maintenance_old_node}}:{{item.value}}
+    {{gluster_maintenance_new_node}}:{{item.value}}
     commit force
   loop: "{{ lookup('dict', volume_bricks) }}"
   delegate_to: "{{ gluster_maintenance_cluster_node }}"

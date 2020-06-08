@@ -16,8 +16,6 @@
     glusterd_libdir: "/var/lib/glusterd"
     peer_tmp_dir: "{{ tmpdir['path'] }}"
 
-# In case of HCI installation, ensure to move the machines to maintenance mode.
-- block:
 
 - import_tasks: authorization.yml
   when: gluster_maintenance_old_node is defined and

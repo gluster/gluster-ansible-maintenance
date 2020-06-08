@@ -2,13 +2,13 @@
   file:
     path: /tmp/authorized
     state: directory
-  delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
+  delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
 
 - name: Fetch the authorized keys from the cluster node
   copy:
     src: "~/.ssh/authorized_keys"
     dest: /tmp/authorized/
-  delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
+  delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
 
 - name: Copying the authorized keys to the new node
   copy:
@@ -22,4 +22,4 @@
   file:
     path: "/tmp/authorized"
     state: absent
-  delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
+  delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
