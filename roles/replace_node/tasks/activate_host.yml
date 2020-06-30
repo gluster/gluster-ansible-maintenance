@@ -1,0 +1,60 @@
+---
+# Get the primary-volfile-server hostname
+- name: Get the primary volfile server hostname
+  shell: df -Th | grep fuse.glusterfs | cut -d ':' -f1 | uniq
+  register: hostnameres
+
+- name: register primary volfile server
+  set_fact:
+    volfile_server: "{{ hostnameres.stdout | trim }}"
+
+# Get the auth to RHV/oVirt Manager
+- name: Obtain SSO token with using username/password credentials
+  ovirt_auth:
+    url: https://{{ ovirt_engine_hostname }}/ovirt-engine/api
+    username: admin@internal
+    password: "{{ ovirt_engine_password }}"
+
+# Activate the host in RHV/oVirt Manager 
+- name: If replacing with same host, reinstall host in RHV/oVirt
+  block:
+    # Move the host into maintenance mode
+    - name: Move the host in to maintenance node
+      ovirt_host:
+        auth: "{{ ovirt_auth }}"
+        state: maintenance
+        name: "{{ gluster_maintenance_new_node_frontend }}"
+
+    # Reinstall host using public key
+    - name: Reinstall the host with the public key
+      async: 50
+      poll: 0
+      ovirt_host:
+        state: reinstalled
+        activate: yes
+        name: "{{ gluster_maintenance_new_node_frontend }}"
+        address: "{{ gluster_maintenance_new_node_frontend }}"
+        public_key: true
+        hosted_engine: deploy
+        auth: "{{ ovirt_auth }}"
+  when: gluster_maintenance_old_node == gluster_maintenance_new_node
+
+# Add the new host in RHV/oVirt Manager 
+- name: If replacing with diff host, add that new host in RHV/oVirt
+  block:
+    # Add the new using public key
+    - name: Add the new host to cluster in RHV/oVirt Admin portal
+      async: 50
+      poll: 0
+      ignore_errors: true
+      ovirt_host:
+        cluster: "{{ ovirt_cluster }}"
+        name: "{{ gluster_maintenance_new_node_frontend }}"
+        address: "{{ gluster_maintenance_new_node_frontend }}"
+        state: present
+        public_key: true
+        auth: "{{ ovirt_auth }}"
+        hosted_engine: deploy
+  delegate_to: "{{ gluster_maintenance_cluster_node }}"
+  when: gluster_maintenance_old_node != gluster_maintenance_new_node  and
+        gluster_maintenance_old_node != volfile_server
