@@ -1,4 +1,5 @@
 ---
+# Peer restoration
 # Validate if replace host is possible
 - name: Validating the state of the old host
   block:
@@ -68,7 +69,15 @@
     nodes:
       - "{{ gluster_maintenance_old_node }}"
   when: gluster_maintenance_old_node != gluster_maintenance_new_node
-  
+
+# Activate the new host in RHV/oVirt manager UI, when the required
+# engine credentials are available
+- import_tasks: activate_host.yml
+  when: gluster_maintenance_old_node is defined and
+        gluster_maintenance_cluster_node is defined and
+        gluster_maintenance_cluster_node_2 is defined and
+        activate_host is defined and activate_host
+   
 # Ensure to delete the temporary directory
 - name: Delete the temporary directory
   file:

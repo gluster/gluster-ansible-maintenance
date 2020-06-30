@@ -12,8 +12,10 @@
     # Find the list of bricks on the machine
     - name: Get the list of bricks corresponding to volume
       shell: >
-        gluster vol info {{ item }} | grep {{ gluster_maintenance_old_node }} |
-        awk -F: '{ print $3 }'
+        gluster vol info {{ item }} | 
+        grep {{ gluster_maintenance_old_node }} |
+        cut -d' ' -f2 |
+        awk -F: '{ print $2 }'
       with_items: "{{ volumes }}"
       register: brick_list
 
