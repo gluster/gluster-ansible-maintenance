@@ -12,22 +12,21 @@
     # Find the list of bricks on the machine
     - name: Get the list of bricks corresponding to volume
       shell: >
-        gluster vol info {{ item }} | 
+        gluster vol info {{ item }} |
         grep {{ gluster_maintenance_old_node }} |
         cut -d' ' -f2 |
         awk -F: '{ print $2 }'
       with_items: "{{ volumes }}"
       register: brick_list
 
+    - name: Run replace-brick commit on the brick
+      shell: >
+        gluster volume replace-brick {{ item.0.item }}
+        {{gluster_maintenance_old_node}}:{{item.1}}
+        {{gluster_maintenance_new_node}}:{{item.1}}
+        commit force
+      with_subelements:
+        - "{{ brick_list.results }}"
+        - stdout_lines
   delegate_to: "{{ gluster_maintenance_cluster_node }}"
-  
-- name: Run replace-brick commit on the brick
-  shell: >
-    gluster volume replace-brick {{ item.0.item }}
-    {{gluster_maintenance_old_node}}:{{item.1}}
-    {{gluster_maintenance_new_node}}:{{item.1}}
-    commit force
-  with_subelements: 
-    - "{{ brick_list.results }}"
-    - stdout_lines
-  delegate_to: "{{ gluster_maintenance_cluster_node }}"
+  when: gluster_maintenance_new_node != gluster_maintenance_old_node
