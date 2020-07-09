@@ -15,7 +15,7 @@
     username: admin@internal
     password: "{{ ovirt_engine_password }}"
 
-# Activate the host in RHV/oVirt Manager 
+# Activate the host in RHV/oVirt Manager
 - name: If replacing with same host, reinstall host in RHV/oVirt
   block:
     # Move the host into maintenance mode
@@ -39,7 +39,7 @@
         auth: "{{ ovirt_auth }}"
   when: gluster_maintenance_old_node == gluster_maintenance_new_node
 
-# Add the new host in RHV/oVirt Manager 
+# Add the new host in RHV/oVirt Manager
 - name: If replacing with diff host, add that new host in RHV/oVirt
   block:
     # Add the new using public key
@@ -56,5 +56,6 @@
         auth: "{{ ovirt_auth }}"
         hosted_engine: deploy
   delegate_to: "{{ gluster_maintenance_cluster_node }}"
+  connection: ssh
   when: gluster_maintenance_old_node != gluster_maintenance_new_node  and
         gluster_maintenance_old_node != volfile_server
