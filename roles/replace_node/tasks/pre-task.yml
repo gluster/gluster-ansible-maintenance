@@ -33,6 +33,7 @@
         grep -v {{ gluster_maintenance_cluster_node }} | grep hostname | sed -n -e 's/^.*'='//p'
       register: cluster_node_temp
       delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
+      connection: ssh
 
     - name: Fetch the Cluster maintenance host's hostname from the ip
       shell: >
@@ -41,6 +42,7 @@
         grep -v {{ gluster_maintenance_cluster_node_2 }} | grep hostname | sed -n -e 's/^.*'='//p'
       register: cluster_node_2_temp
       delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
+      connection: ssh
 
     - name: Store the UUID
       set_fact:
