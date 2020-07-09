@@ -1,0 +1,52 @@
+#check if there exist more than 1 hostname in the gluster peer status if not, it skips the pre-task
+#if parsed input is ip itself and there exist only 1 hostname in gluster peer status , then we can safely assume that gluster is configured with gluster ip address
+# [1]Not Needed: check if that is ip or not, if not ip then copy the playbook hostname directly to further tasks
+# if the parsed input is hostname, and there exist only 1 hostname in the gluster peer status , then we can assume that gluster is configured with hostnames itself
+#[1]Not Needed :if its ip then replace the hostname with ip and parse it as well (more or less the same as above)
+#[1]no need of those two steps as it  already would be set in the playbook.
+
+---
+- name: Get the number of hosts in the cluster
+  shell: >
+    cat /var/lib/glusterd/peers/* | grep -c uuid
+  register: host_count
+
+- name: Get the number of hostname in the peer output
+  shell: >
+    cat /var/lib/glusterd/peers/* | grep -c hostname
+  register: hostname_count
+
+- name: Check if gluster is configured as another network
+  block:
+    # probe the new host, if new host is not the same old host
+    - name: Fetch the old host's hostname from the ip
+      shell: >
+        cat /var/lib/glusterd/peers/* |
+        grep -A1 -B1 {{ gluster_maintenance_old_node | mandatory }} |
+        grep -v {{ gluster_maintenance_old_node }} | grep hostname | sed -n -e 's/^.*'='//p'
+      register: old_node_temp
+
+    - name: Fetch the maintenance host's hostname from the ip
+      shell: >
+        cat /var/lib/glusterd/peers/* |
+        grep -A1 -B1 {{ gluster_maintenance_cluster_node | mandatory }} |
+        grep -v {{ gluster_maintenance_cluster_node }} | grep hostname | sed -n -e 's/^.*'='//p'
+      register: cluster_node_temp
+      delegate_to: "{{ gluster_maintenance_cluster_node | mandatory }}"
+
+    - name: Fetch the Cluster maintenance host's hostname from the ip
+      shell: >
+        cat /var/lib/glusterd/peers/* |
+        grep -A1 -B1 {{ gluster_maintenance_cluster_node_2 | mandatory }} |
+        grep -v {{ gluster_maintenance_cluster_node_2 }} | grep hostname | sed -n -e 's/^.*'='//p'
+      register: cluster_node_2_temp
+      delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
+
+    - name: Store the UUID
+      set_fact:
+        gluster_maintenance_old_node: "{{ old_node_temp.stdout | trim }}"
+        gluster_maintenance_cluster_node: "{{ cluster_node_temp.stdout| trim }}"
+        gluster_maintenance_cluster_node_2: "{{ cluster_node_2_temp.stdout | trim }}"
+
+  when:  host_count.stdout != hostname_count.stdout
+

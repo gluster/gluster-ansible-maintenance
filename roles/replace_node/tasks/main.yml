@@ -17,6 +17,11 @@
     peer_tmp_dir: "{{ tmpdir['path'] }}"
 
 
+- import_tasks: pre-task.yml
+  when: gluster_maintenance_old_node is defined and
+        gluster_maintenance_cluster_node is defined and
+        gluster_maintenance_cluster_node_2 is defined
+
 - import_tasks: authorization.yml
   when: gluster_maintenance_old_node is defined and
         gluster_maintenance_cluster_node is defined and
