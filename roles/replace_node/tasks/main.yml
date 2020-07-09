@@ -1,13 +1,40 @@
 ---
-# Currently we support only same node replacement.
-# Change remove this when we enhance the role
+# Peer restoration
+# Validate if replace host is possible
+- name: Validating the state of the old host
+  block:
+    - name: Fetch the UUID of the old node
+      shell: >
+        gluster peer status |
+        grep -A1 {{ gluster_maintenance_old_node | mandatory }} |
+        awk -F: '/uid/ { print $2}'
+      register: uuid
+
+    - name: Get the state from peer file
+      shell: grep state "/var/lib/glusterd/peers/{{ uuid.stdout | trim }}"
+      register: grepres1
+
+    - name: Get the state from the peer command
+      shell: >
+        gluster peer status | 
+        grep -A1 {{ uuid.stdout | trim }} | 
+        grep Connected |
+        wc -l
+      ignore_errors: true
+      register: grepres2
+
+    - fail:
+        msg: "{{ gluster_maintenance_old_node }} is already in connected state"
+      when: grepres1.stdout == "state=3" and grepres2.stdout == "1"
+  run_once: true
+
 # Create tmp dir for storing peer data
 - name: Create temporary storage directory
   tempfile:
     state: directory
     suffix: _peer
   register: tmpdir
-  delegate_to: 127.0.0.1
+  delegate_to: localhost
   run_once: True
 
 # Set the glusterd location
@@ -16,32 +43,50 @@
     glusterd_libdir: "/var/lib/glusterd"
     peer_tmp_dir: "{{ tmpdir['path'] }}"
 
-
 - import_tasks: pre-task.yml
   when: gluster_maintenance_old_node is defined and
         gluster_maintenance_cluster_node is defined and
         gluster_maintenance_cluster_node_2 is defined
 
+# Copies the authorized_keys file to the new node
 - import_tasks: authorization.yml
   when: gluster_maintenance_old_node is defined and
         gluster_maintenance_cluster_node is defined and
         gluster_maintenance_cluster_node_2 is defined
 
+# Peer restoration
 - import_tasks: peers.yml
   when: gluster_maintenance_old_node is defined and 
         gluster_maintenance_cluster_node is defined and
-        gluster_maintenance_cluster_node_2 is defined
+        gluster_maintenance_cluster_node_2 is defined 
 
+# volume restoration
 - import_tasks: volume.yml
   when: gluster_maintenance_old_node is defined and
         gluster_maintenance_cluster_node is defined and
         gluster_maintenance_cluster_node_2 is defined
 
+# Detach the old host, to replace host with different FQDN usecase
+- name: Detach the peer, in the case of different host replacement
+  gluster_peer:
+    state: absent
+    force: true 
+    nodes:
+      - "{{ gluster_maintenance_old_node }}"
+  when: gluster_maintenance_old_node != gluster_maintenance_new_node
+
+# Activate the new host in RHV/oVirt manager UI, when the required
+# engine credentials are available
+- import_tasks: activate_host.yml
+  when: gluster_maintenance_old_node is defined and
+        gluster_maintenance_cluster_node is defined and
+        gluster_maintenance_cluster_node_2 is defined and
+        activate_host is defined and activate_host
+   
 # Ensure to delete the temporary directory
 - name: Delete the temporary directory
   file:
     state: absent
     path: "{{ peer_tmp_dir }}"
-  delegate_to: 127.0.0.1
+  delegate_to: localhost 
   run_once: True
-
