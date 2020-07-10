@@ -23,12 +23,14 @@
 
     # Workaround for Gluster Bug doesn't copy the peer file in rejected state
     - name: Workaround for the bug to copy peer file of reject node
+      connection: ssh
       copy:
         src: "{{ glusterd_libdir }}/peers/{{ old_node_uuid.stdout | trim }}"
         dest: "{{ glusterd_libdir }}/peers/"
       delegate_to: "{{ gluster_maintenance_new_node }}"
 
     - name: Restart glusterd on the new node
+      connection: ssh
       service:
         name: glusterd
         state: restarted
@@ -45,7 +47,7 @@
       register: current_node_uuid
       run_once: true
 
-    - name: Fail if current node UUID is empty 
+    - name: Fail if current node UUID is empty
       fail: msg="Execute this playbook on the active host"
       when: current_node_uuid.stdout == ""
 
@@ -55,18 +57,21 @@
         current_uuid: "{{ current_node_uuid.stdout | trim }}"
 
     - name: Collect all the peer files from cluster_node
+      connection: ssh
       copy:
         src: "{{ glusterd_libdir }}/peers/"
         dest: "{{ peer_tmp_dir }}/"
       delegate_to: "{{ gluster_maintenance_cluster_node }}"
 
     - name: Check whether peer file of cluster_node is available
+      connection: ssh
       stat:
         path: "{{ glusterd_libdir }}/peers/{{ current_uuid }}"
       register: peerfileres
-      delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}" 
+      delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
 
-    - name: Fetch the peer file of the current node  
+    - name: Fetch the peer file of the current node
+      connection: ssh
       fetch:
         src: "{{ glusterd_libdir }}/peers/{{ current_uuid }}"
         dest: "{{ peer_tmp_dir }}/"
@@ -74,7 +79,8 @@
       delegate_to: "{{ gluster_maintenance_cluster_node_2 | mandatory }}"
       when: peerfileres.stat.isreg is defined
 
-    - name: Fetch the peer file of the current node  
+    - name: Fetch the peer file of the current node
+      connection: ssh
       fetch:
         src: "{{ glusterd_libdir }}/peers/{{ current_uuid }}"
         dest: "{{ peer_tmp_dir }}/"
@@ -83,18 +89,21 @@
       when: peerfileres.stat.isreg is not defined
 
     - name: Remove the old node uuid from the extracted peer details
+      connection: ssh
       file:
         path: "{{ peer_tmp_dir }}/{{ old_uuid }}"
         state: absent
       delegate_to: "{{ gluster_maintenance_cluster_node }}"
 
     - name: Copy all the peer files to the new host
+      connection: ssh
       copy:
         src: "{{ peer_tmp_dir }}/"
         dest: "{{ glusterd_libdir }}/peers/"
       delegate_to: "{{ gluster_maintenance_new_node }}"
-  
+
     - name: Edit the new node's glusterd.info
+      connection: ssh
       lineinfile:
         path: "{{ glusterd_libdir }}/glusterd.info"
         regexp: '^UUID='
@@ -102,6 +111,7 @@
       delegate_to: "{{ gluster_maintenance_new_node | mandatory }}"
 
     - name: Restart glusterd
+      connection: ssh
       service:
         name: glusterd
         state: restarted
