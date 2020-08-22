@@ -48,6 +48,8 @@ Note that `server' in the inventory and the variable gluster_maintenance_cluster
     - gluster_maintenance_old_node: host1.example.com
     - gluster_maintenance_new_node: host1.example.com
     - gluster_maintenance_cluster_node: host2.example.com
+    - gluster_maintenance_cluster_node_2: host2.example.com
+
   roles:
     - gluster.maintenance
 ```
