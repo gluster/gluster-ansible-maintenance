@@ -1,7 +1,26 @@
 ---
-# tasks file for gluster-ansible-maintenance
-- name: Replace a node
+# One of the variables have to be defined, else fail
+- assert:
+     that:
+        - "gluster_maintenance_net_perf_nodes is defined or \
+           gluster_maintenance_ovirt_url is defined"
+     fail_msg: "Variable gluster_maintenance_net_perf_nodes or \
+                gluster_maintenance_ovirt_url should be defined"
+  run_once: true
+
+# Collect the network performance numbers
+- name: Run network performance tools
   import_role:
-    name: "gluster.maintenance/roles/replace_node"
+    name: "gluster.maintenance/roles/perf"
+  when: gluster_maintenance_net_perf_nodes is defined
   tags:
-    - replace_node
+    - perf
+
+# # tasks file for gluster-ansible-maintenance
+# - name: Replace a node
+#   import_role:
+#     name: "gluster.maintenance/roles/replace_node"
+#   when: gluster_maintenance_ovirt_url is defined
+#   tags:
+#     - replace_node
+

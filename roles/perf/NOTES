@@ -1,0 +1,86 @@
+The following are the list commands that are automated in the role.
+
+
+
+==========================================================================================
+
+On one of the hosts(The first test creates 16GB file and 2nd one overwrites
+it. Please make sure to have enough space to do this test):
+# mkdir results_jul8
+# cd results_jul8 #Execute all the commands on the host inside this directory
+
+Place stats_collect.sh in this directory and check that passwordless ssh is
+working as expected using the following command:
+# ./stats_collect.sh check
+
+It prints "passed!" at the end if it works as expected.
+
+Check that all the bricks are up for the volume
+# gluster volume status <volname> | tee gluster_volume_status.txt # should print
+'Y' for all the bricks
+
+Check that there are no pending heals for the volume
+# gluster volume heal <volname> info | tee gluster_heal_info.txt # should print
+number of entries as zero for each of the bricks
+
+Enable volume profile and clear the stats:
+#gluster volume profile <volname> start
+#gluster volume profile <volname> info clear
+
+Create a 'testdir' inside the glusterfs mount where data is stored. I am going
+to call this '/mnt/testdir' in the commands. Please replace '--directory' value
+appropriately in the commands
+1) Collecting the stats for seq-write:
+    a) ./stats_collect.sh start
+    b) fio --name=writetest --ioengine=sync --rw=write --direct=0 --create_on_open=1 --end_fsync=1 --bs=128k --directory=/mnt/testdir --filename_format=f.\$jobnum.\$filenum --filesize=16g --size=16g --numjobs=8 --output=seq-write.out
+    c) ./stats_collect.sh stop
+    d) gluster volume profile <volname> info incremental > seq-write-profile.txt
+#The set above will create run_<timestamp> directory
+    e) mv run_<timestamp> seq-write-stats
+
+#Next test re-uses the files generated in this step, so don't cleanup anything
+Execute: "sync; echo 3 > /proc/sys/vm/drop_caches" on both the client and servers before running the next step.
+
+2) Collecting the stats for seq-write-direct:
+    a) ./stats_collect.sh start
+    b) fio --name=writetest --ioengine=libaio --rw=write --direct=1 --create_on_open=1 --end_fsync=1 --bs=128k --directory=/mnt/testdir --filename_format=f.\$jobnum.\$filenum --filesize=16g --size=16g --iodepth=64 --output=seq-libaio-direct-write.out
+    c) ./stats_collect.sh stop
+    d) gluster volume profile <volname> info incremental > seq-libaio-direct-write.txt
+#The set above will create run_<timestamp> directory
+    e) mv run_<timestamp> seq-libaio-direct-stats
+
+#We can delete the test directory created as part of the steps so far.
+
+In the new VM with the configuration changes were suggested:
+# mkdir vm_results_jul8
+# cd vm_results_jul8
+# Place the stats_collect_local.sh file attached to the case inside directory: 'vm_results_jul8' and execute the commands on the VM inside this directory.
+# Create a 'testdir' inside the VM where data is stored. I am going to call this 'testdir' in the commands, please replace '--directory' value appropriately in the commands
+For the following two runs, we need to collect the stats in both the VM and the hosts.
+1) Collecting stats Seq-write inside the VM without direct-io
+    d) In the VM: ./stats_collect_local.sh start
+    e) On the host: ./stats_collect.sh start
+    f) In the VM: fio --name=writetest --ioengine=sync --rw=write --direct=0 --create_on_open=1 --end_fsync=1 --bs=128k --directory=testdir --filename_format=f.\$jobnum.\$filenum --filesize=1g --size=1g --numjobs=4 --output=vm-seq-write.out
+    g) In the VM: ./stats_collect_local.sh stop
+    h) On the host ./stats_collect.sh stop
+    i) On the host: gluster volume profile <volname> info incremental > vm-seq-write-profile.txt
+#The set above will create another run_<timestamp> directory
+    j) On the host: mv run_<timestamp> vm-seq-write-stats
+    k) In the VM: mv run_<timestamp> vm-seq-write-stats
+
+Execute "sync; echo 3 > /proc/sys/vm/drop_caches" In the VM.
+
+2) Collecting stats Seq-write inside the VM with direct-io
+    a) In the VM: ./stats_collect_local.sh start
+    b) On the host: ./stats_collect.sh start
+    c) In the VM: fio --name=writetest --ioengine=sync --rw=write --direct=1 --create_on_open=1 --end_fsync=1 --bs=128k --directory=testdir --filename_format=f.\$jobnum.\$filenum --filesize=1g --size=1g --numjobs=4 --output=vm-seq-write-direct.out
+    d) In the VM: ./stats_collect_local.sh stop
+    e) On the host ./stats_collect.sh stop
+    f) On the host: gluster volume profile <volname> info incremental > vm-seq-write-direct-profile.txt
+#The set above will create another run_<timestamp> directory
+    g) On the host: mv run_<timestamp> vm-seq-write-direct-stats
+    h) In the VM: mv run_<timestamp> vm-seq-write-direct-stats
+
+Zip vm_results_jul8 on the VM
+Zip results_jul8 on the host
+Send both these files for analysis.
