@@ -1,0 +1,39 @@
+---
+# Start stats collection
+
+- set_fact:
+     monitor_itrvl: "{{gluster_maintenance_monitor_interval|default(10)}}"
+
+- set_fact:
+     fiodir: "{{g_mount}}/fio"
+
+# Create a directory for fio
+- name: Create a directory under mountpoint
+  file:
+     path: "{{ fiodir }}"
+     state: directory
+  delegate_to: "{{ gluster_maintenance_client }}"
+
+- name: Start sar - system activity information
+  shell: |
+     nohup sar -n DEV -BdpqruW {{monitor_itrvl}} > \
+             {{ioresdir}}/sar_{{inventory_hostname}}.txt 2>&1 \
+            < /dev/null &
+  async: 7200
+  poll: 0
+
+- name: Start iostat - CPU and I/O statistics
+  shell: >
+     nohup iostat -dkNtx {{ monitor_itrvl }} > \
+             {{ioresdir}}/iostat_{{inventory_hostname}}.txt 2>&1 \
+           < /dev/null &
+  async: 7200
+  poll: 0
+
+- name: Start top - process information
+  shell: >
+     nohup top -bH -d {{ monitor_itrvl }} > \
+             {{ioresdir}}/top_{{inventory_hostname}}.txt 2>&1 \
+           < /dev/null &
+  async: 7200
+  poll: 0

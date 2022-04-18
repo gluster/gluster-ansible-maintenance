@@ -1,0 +1,102 @@
+---
+# Run performance number gathering tasks tasks
+
+- name: Install iperf3 package if not present
+  package:
+     name: "{{ item }}"
+     state: present
+  with_items:
+     - iperf3
+     - fio
+
+# Fact collection and initialization block
+- block:
+     # Check for mandatory variables, fail if not set
+     - name: Check if mandatory variables are set
+       assert:
+         that:
+            - "{{item}} is defined"
+         fail_msg: "FAIL: variable {{item}} not set"
+         success_msg: "PASS: variable {{item}} is defined."
+       run_once: true
+       delegate_to: localhost
+       with_items:
+         - gluster_maintenance_volname
+         - gluster_maintenance_mountpoint
+         - gluster_maintenance_client
+         - gluster_maintenance_net_perf_nodes
+
+     # We run this test separately since vm stats can be collected
+     # separately.
+     - name: Check if variables for vm are set
+       assert:
+         that:
+            - "gluster_maintenance_vm is defined"
+         fail_msg: "FAIL: variable gluster_maintenance_vm not set"
+         success_msg: "PASS: variable gluster_maintenance_vm is defined."
+       run_once: true
+       delegate_to: localhost
+       tags: vmstat
+
+     - name: Gather facts to determine timestamp
+       setup:
+          gather_subset:
+             - '!all'
+             - '!any'
+             - date_time
+
+     - name: perf result dir
+       set_fact:
+          perfresdir: /var/tmp/perf-results
+
+     - set_fact:
+          g_mount: "{{ gluster_maintenance_mountpoint }}"
+       when: gluster_maintenance_mountpoint is defined
+
+     - set_fact:
+          perf_master: "{{ gluster_maintenance_net_perf_nodes[0] }}"
+
+     - set_fact:
+          ioresdir: "{{ perfresdir }}/ioresults_{{inventory_hostname}}"
+
+     - name: Create temporary directory for I/O results
+       file:
+          path: "{{ ioresdir }}"
+          state: directory
+
+     - name: Create temporary directory for perf results
+       file:
+          path: "{{ perfresdir }}"
+          state: directory
+  tags:
+     - always
+
+- block:
+     - name: Get the timestamp
+       set_fact:
+          ts: "{{ ansible_date_time.epoch }}"
+
+     - name: Set local result dir
+       set_fact:
+          localresdir: "/tmp/perf_run_{{ts}}"
+
+     - name: Create directory locally to store results
+       file:
+          path: "{{ localresdir }}"
+          state: directory
+  delegate_to: localhost
+  run_once: true
+  tags:
+     - always
+
+# Run the ioperf tests
+- name: ioperf tests
+  import_tasks: ioperftest.yml
+  tags:
+    - ioperftests
+
+# Collect network performance data
+- name: Run tasks to collect network performance
+  import_tasks: netperf.yml
+  tags:
+    - netperf

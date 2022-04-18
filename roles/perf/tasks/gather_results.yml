@@ -1,0 +1,40 @@
+---
+- name: Stop sar on all nodes
+  shell: pkill -x sar; echo
+
+- name: Stop iostat on all nodes
+  shell: pkill -x iostat; echo
+
+- name: Stop top on all nodes
+  shell: pkill -x top; echo
+
+- set_fact:
+     ioresdir: "{{ perfresdir }}/ioresults_{{inventory_hostname}}"
+
+- name: Get gluster volume profile info
+  shell: |
+     gluster volume profile {{gluster_maintenance_volname}} info incremental \
+             > {{ioresdir}}/{{ profile_name }}-profile.txt
+  delegate_to: "{{ perf_master }}"
+  run_once: true
+
+- name: Collect the results into a directory
+  synchronize:
+     src: "{{ioresdir}}"
+     dest: "{{ localresdir }}/"
+     dirs: yes
+     mode: pull
+
+- debug:
+    msg: "Test results are stored in {{ localresdir }}"
+  run_once: true
+
+# Run on clients and servers
+- name: Clear caches
+  shell: sync; echo 3 > /proc/sys/vm/drop_caches
+
+- name: Clear caches on clients
+  shell: sync; echo 3 > /proc/sys/vm/drop_caches
+  delegate_to: "{{ gluster_maintenance_client }}"
+  run_once: true
+

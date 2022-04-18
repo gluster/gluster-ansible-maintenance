@@ -1,0 +1,15 @@
+---
+- set_fact:
+     profile_name: 'seq-libaio-direct-write'
+
+- name: Run fio tests
+  shell: |
+     fio --name=writetest --ioengine=libaio --rw=write --direct=1 \
+         --create_on_open=1 --end_fsync=1 --bs=128k --directory={{fiodir}} \
+         --filename_format=f.\$jobnum.\$filenum \
+         --filesize={{gluster_maintenance_fio_size_gb|default(16)}}g \
+         --size={{gluster_maintenance_fio_size_gb|default(16)}}g \
+         --iodepth=64 --output={{profile_name}}.out
+  delegate_to: "{{ gluster_maintenance_client }}"
+  run_once: true
+
